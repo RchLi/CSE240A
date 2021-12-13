@@ -11,9 +11,9 @@
 //
 // TODO:Student Information
 //
-const char *studentName = "NAME";
-const char *studentID   = "PID";
-const char *email       = "EMAIL";
+const char *studentName = "Ruicheng Li";
+const char *studentID   = "A59001918";
+const char *email       = "rul004@ucsd.edu";
 
 //------------------------------------//
 //      Predictor Configuration       //
@@ -33,23 +33,75 @@ int verbose;
 //      Predictor Data Structures     //
 //------------------------------------//
 
-//
-//TODO: Add your own Branch Predictor data structures here
-//
+int history;
+int g_table[1 << 15];
 
+//------------------------------------//
+//        Auxiliary Functions         //
+//------------------------------------//
+// Make prediction based on the store value in the 2-bit table
+// 0 - N, 1 - WN, 2 - WT, 3 - T
+int select_pred(int value){
+  switch (value)
+  {
+  case 0:
+    return NOTTAKEN;
+  case 1:
+    return NOTTAKEN;
+  case 2:
+    return TAKEN;
+  case 3:
+    return TAKEN;
+  default:
+    return TAKEN;
+  }
+}
+
+// update table based on the outcome
+// 0 - N, 1 - WN, 2 - WT, 3 - T
+void update_table(int index, uint8_t outcome){
+  int value = g_table[index];
+  if(value == 0 & outcome == NOTTAKEN){
+    return;
+  }
+  else if(value == 0 & outcome == TAKEN){
+    g_table[index] = 1;
+  }
+  else if(value == 1 & outcome == NOTTAKEN){
+    g_table[index] = 0;
+  }
+  else if(value == 1& outcome == TAKEN){
+    g_table[index] = 2;
+  }
+  else if(value == 2 & outcome == NOTTAKEN){
+    g_table[index] = 1;
+  }
+  else if(value == 2 & outcome == TAKEN){
+    g_table[index] = 3;
+  }
+  else if(value == 3 & outcome == NOTTAKEN){
+    g_table[index] = 2;
+  }
+  return;
+}
 
 //------------------------------------//
 //        Predictor Functions         //
 //------------------------------------//
-
 // Initialize the predictor
-//
 void
 init_predictor()
 {
-  //
-  //TODO: Initialize Branch Predictor Data Structures
-  //
+  
+  int i;
+  int table_size = 1 << ghistoryBits;
+  history = (1 << ghistoryBits) - 1;
+  for(i = 0; i < table_size; i++){
+      g_table[i] = 0;
+  }
+
+
+
 }
 
 // Make a prediction for conditional branch instruction at PC 'pc'
@@ -64,10 +116,13 @@ make_prediction(uint32_t pc)
   //
 
   // Make a prediction based on the bpType
+  int index;
   switch (bpType) {
     case STATIC:
       return TAKEN;
     case GSHARE:
+      index = (pc ^ history) & ((1 << ghistoryBits) - 1);
+      return select_pred(g_table[index]);
     case TOURNAMENT:
     case CUSTOM:
     default:
@@ -85,7 +140,15 @@ make_prediction(uint32_t pc)
 void
 train_predictor(uint32_t pc, uint8_t outcome)
 {
-  //
-  //TODO: Implement Predictor training
-  //
+  // updaet table
+  int index = (pc ^ history) & ((1 << ghistoryBits) - 1);
+  update_table(index, outcome);
+
+  // update history
+  if(outcome == 1){
+    history = ((history << 1)  + 1) & ((1 << ghistoryBits) - 1);
+  }
+  else{
+    history = (history << 1) & ((1 << ghistoryBits) - 1);
+  }
 }
